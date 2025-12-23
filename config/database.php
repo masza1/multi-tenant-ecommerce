@@ -116,7 +116,7 @@ return [
             'driver' => 'pgsql',
             'host' => env('DB_HOST', 'localhost'),
             'port' => env('DB_PORT', '54322'),
-            'database' => env('DB_DATABASE', 'multitenant_central'),
+            'database' => null,  // Stancl/Tenancy will set this dynamically
             'username' => env('DB_USERNAME', 'postgres'),
             'password' => env('DB_PASSWORD', ''),
             'charset' => env('DB_CHARSET', 'utf8'),
