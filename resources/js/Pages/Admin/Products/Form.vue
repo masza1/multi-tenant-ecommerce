@@ -1,20 +1,8 @@
 <template>
     <div class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50">
-        <header class="sticky top-0 z-40 bg-white shadow-sm">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                <div class="flex justify-between items-center">
-                    <a href="/" class="text-2xl font-bold text-blue-600">StoreHub</a>
-                    <div v-if="$page.props.auth.user" class="flex items-center space-x-4">
-                        <span class="text-gray-700 font-medium">{{ $page.props.auth.user.name }}</span>
-                        <form @submit.prevent="logout" class="inline">
-                            <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition">
-                                {{ trans('messages.logout') }}
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </header>
+        <Toast :toasts="toasts" @remove="removeToast" />
+        
+        <AppHeader />
 
         <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div class="mb-12">
@@ -118,7 +106,7 @@
                             <label for="image" class="block text-sm font-semibold text-gray-900 mb-2">
                                 {{ trans('messages.image') }}
                             </label>
-                            <div class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-blue-500 hover:bg-blue-50 transition">
+                            <label for="image" class="block border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-blue-500 hover:bg-blue-50 transition cursor-pointer">
                                 <input
                                     id="image"
                                     type="file"
@@ -126,15 +114,14 @@
                                     class="hidden"
                                     @change="handleImageChange"
                                 />
-                                <label v-if="!imagePreview" for="image" class="cursor-pointer">
-                                    <svg class="mx-auto h-16 w-16 text-gray-400 mb-3" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-8l-3.172-3.172a4 4 0 00-5.656 0L28 20M9 20l3.172-3.172a4 4 0 015.656 0L28 20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                                    </svg>
-                                    <p class="text-gray-700 font-medium text-lg">{{ trans('messages.click_to_upload') }}</p>
-                                    <p class="text-gray-500 text-sm mt-1">PNG, JPG, GIF up to 2MB</p>
-                                </label>
-                            </div>
+                                <svg class="mx-auto h-16 w-16 text-gray-400 mb-3" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-8l-3.172-3.172a4 4 0 00-5.656 0L28 20M9 20l3.172-3.172a4 4 0 015.656 0L28 20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                                <p class="text-gray-700 font-medium text-lg">{{ trans('messages.click_to_upload') }}</p>
+                                <p class="text-gray-500 text-sm mt-1">PNG, JPG, GIF up to 2MB</p>
+                            </label>
                             <p v-if="errors.image" class="mt-2 text-sm text-red-600">{{ errors.image }}</p>
+                            <p v-if="!props.product && !imagePreview && submitted" class="mt-2 text-sm text-red-600">{{ trans('messages.image') }} is required</p>
                             <div v-if="imagePreview" class="mt-6">
                                 <div class="relative inline-block">
                                     <img :src="imagePreview" alt="Preview" class="w-40 h-40 object-cover rounded-xl shadow-lg" />
@@ -187,10 +174,14 @@
 
 <script setup>
 import { ref } from 'vue';
+import Toast from '@/Components/Toast.vue';
+import AppHeader from '@/Components/AppHeader.vue';
 import { useI18n } from '@/composables/useI18n';
+import { useFlashToast } from '@/composables/useFlashToast';
 import { router } from '@inertiajs/vue3';
 
 const { trans } = useI18n();
+const { toasts, removeToast, error, success } = useFlashToast();
 
 const props = defineProps({
     product: Object,
@@ -199,6 +190,7 @@ const props = defineProps({
 const processing = ref(false);
 const errors = ref({});
 const imagePreview = ref(null);
+const submitted = ref(false);
 
 const form = ref({
     sku: props.product?.sku || '',
@@ -208,6 +200,7 @@ const form = ref({
     stock: props.product?.stock || '',
     image: null,
     is_active: props.product?.is_active !== false,
+    delete_image: false,
 });
 
 if (props.product?.image_url) {
@@ -229,41 +222,78 @@ const handleImageChange = (e) => {
 const removeImage = () => {
     form.value.image = null;
     imagePreview.value = null;
-};
-
-const logout = () => {
-    router.post('/logout');
+    if (props.product) {
+        form.value.delete_image = true;
+    }
 };
 
 const submit = () => {
+    submitted.value = true;
+    
+    // Validate image required for create
+    if (!props.product && !imagePreview.value) {
+        error(trans('messages.image') + ' is required');
+        return;
+    }
+    
+    // Validate product must always have image (for edit too)
+    if (props.product) {
+        const willHaveImage = imagePreview.value && !form.value.delete_image;
+        if (!willHaveImage) {
+            error('Product must have at least one image');
+            return;
+        }
+    }
+    
     processing.value = true;
     errors.value = {};
 
-    const data = {
-        sku: form.value.sku,
-        name: form.value.name,
-        description: form.value.description,
-        price: form.value.price,
-        stock: form.value.stock,
-        is_active: form.value.is_active,
-        image: form.value.image,
-    };
-
-    if (props.product) {
-        router.post(`/admin/products/${props.product.id}`, data, {
-            onError: (pageErrors) => {
-                processing.value = false;
-                errors.value = pageErrors;
-            },
-        });
-    } else {
-        router.post('/admin/products', data, {
-            onError: (pageErrors) => {
-                processing.value = false;
-                errors.value = pageErrors;
-            },
-        });
+    const formData = new FormData();
+    formData.append('sku', form.value.sku);
+    formData.append('name', form.value.name);
+    formData.append('description', form.value.description);
+    formData.append('price', form.value.price);
+    formData.append('stock', form.value.stock);
+    formData.append('is_active', form.value.is_active ? '1' : '0');
+    
+    // Append image file if selected
+    if (form.value.image && form.value.image instanceof File) {
+        formData.append('image', form.value.image);
     }
+    
+    // Append delete_image flag if editing
+    if (form.value.delete_image) {
+        formData.append('delete_image', '1');
+    }
+
+    const endpoint = props.product ? `/admin/products/${props.product.id}` : '/admin/products';
+    
+    // For PATCH with FormData, need to add _method
+    if (props.product) {
+        formData.append('_method', 'PATCH');
+    }
+    
+    router.post(endpoint, formData, {
+        onSuccess: () => {
+            processing.value = false;
+            success('Product saved successfully!');
+        },
+        onError: (pageErrors) => {
+            processing.value = false;
+            errors.value = pageErrors;
+            
+            // Show error toast with first error message
+            const errorMessages = Object.values(pageErrors);
+            if (errorMessages.length > 0) {
+                const firstError = Array.isArray(errorMessages[0]) 
+                    ? errorMessages[0][0] 
+                    : errorMessages[0];
+                error(firstError);
+            } else {
+                error('Failed to save product. Please try again.');
+            }
+        },
+    });
 };
 </script>
 

@@ -1,6 +1,7 @@
 <template>
     <div class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50">
-        <TenantHeader />
+        <AppHeader />
+        <Toast :toasts="toasts" @remove="removeToast" />
 
         <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div class="mb-12">
@@ -58,26 +59,19 @@
                             <span class="text-sm text-gray-600">{{ trans('messages.stock') }}: {{ product.stock }}</span>
                         </div>
 
-                        <form v-if="$page.props.auth.user && product.stock > 0" method="post" :action="route('cart.store')" class="w-full">
-                            <input type="hidden" name="_token" :value="$page.props.csrf_token" />
-                            <input type="hidden" name="product_id" :value="product.id" />
-                            <input type="hidden" name="quantity" value="1" />
-                            <button type="submit" class="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition flex items-center justify-center space-x-2">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                                </svg>
-                                <span>{{ trans('messages.add_to_cart') }}</span>
-                            </button>
-                        </form>
+                        <button v-if="$page.props.auth.user && product.stock > 0" @click="addToCart(product.id)" class="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition flex items-center justify-center space-x-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                            </svg>
+                            <span>{{ trans('messages.add_to_cart') }}</span>
+                        </button>
 
                         <div v-else-if="$page.props.auth.user && product.stock === 0" class="w-full px-4 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg text-center">
                             {{ trans('messages.out_of_stock') }}
                         </div>
 
                         <div v-else class="w-full px-4 py-3 bg-gray-100 text-gray-700 font-semibold rounded-lg text-center">
-                            <a :href="route('login')" class="hover:text-blue-600 transition">
-                                {{ trans('messages.login_here') }}
-                            </a>
+                            {{ trans('messages.in_stock') }}
                         </div>
                     </div>
                 </div>
@@ -87,10 +81,14 @@
 </template>
 
 <script setup>
-import TenantHeader from '@/Components/TenantHeader.vue';
+import AppHeader from '@/Components/AppHeader.vue';
+import Toast from '@/Components/Toast.vue';
 import { useI18n } from '@/composables/useI18n';
+import { router } from '@inertiajs/vue3';
+import { useToast } from '@/composables/useToast';
 
-const { trans } = useI18n();
+const { trans, __ } = useI18n();
+const { toast, toasts, removeToast } = useToast();
 
 defineProps({
     products: Object,
@@ -98,5 +96,27 @@ defineProps({
 
 const formatPrice = (price) => {
     return new Intl.NumberFormat('id-ID').format(price);
+};
+
+const addToCart = (productId) => {
+    router.post(route('cart.store'), {
+        product_id: productId,
+        quantity: 1,
+    }, {
+        onSuccess: (page) => {
+            if (page.props.flash?.error) {
+                toast.error(page.props.flash.error);
+            } else if (page.props.flash?.success) {
+                toast.success(page.props.flash.success);
+            }
+        },
+        onError: (error) => {
+            if (error.error) {
+                toast.error(error.error);
+            } else {
+                toast.error(__('messages.something_went_wrong'));
+            }
+        }
+    });
 };
 </script>

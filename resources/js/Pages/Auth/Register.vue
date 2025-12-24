@@ -4,27 +4,7 @@
         <Toast :toasts="toasts" @remove="removeToast" />
 
         <!-- Header -->
-        <header class="sticky top-0 z-40 bg-white shadow-sm">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-                <a href="/" class="text-2xl font-bold text-blue-600">StoreHub</a>
-
-                <div class="flex gap-2">
-                    <button
-                        v-for="lang in ['en', 'id']"
-                        :key="lang"
-                        @click="setLanguage(lang)"
-                        :class="[
-                            'px-3 py-1 rounded font-medium transition',
-                            currentLang === lang
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        ]"
-                    >
-                        {{ lang.toUpperCase() }}
-                    </button>
-                </div>
-            </div>
-        </header>
+        <AppHeader />
 
         <!-- Register Card -->
         <div class="flex-1 flex items-center justify-center px-4 py-8">
@@ -164,15 +144,14 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
 import { useForm, Link } from '@inertiajs/vue3';
 import { useI18n } from '@/composables/useI18n';
 import { useFlashToast } from '@/composables/useFlashToast';
 import Toast from '@/Components/Toast.vue';
+import AppHeader from '@/Components/AppHeader.vue';
 
-const { trans, setLocale, globalLocale } = useI18n();
+const { trans } = useI18n();
 const { toasts, removeToast, error } = useFlashToast();
-const currentLang = computed(() => globalLocale.value || 'en');
 
 const form = useForm({
     name: '',
@@ -192,10 +171,6 @@ const submitRegister = () => {
             else error(trans('messages.registration_failed'));
         },
     });
-};
-
-const setLanguage = (lang) => {
-    setLocale(lang);
 };
 </script>
 

@@ -143,14 +143,15 @@ class TenancyServiceProvider extends ServiceProvider
     protected function makeTenancyMiddlewareHighestPriority()
     {
         $tenancyMiddleware = [
-            // Even higher priority than the initialization middleware
-            Middleware\PreventAccessFromCentralDomains::class,
-
+            // Initialization middleware must run FIRST to identify the tenant
             Middleware\InitializeTenancyByDomain::class,
             Middleware\InitializeTenancyBySubdomain::class,
             Middleware\InitializeTenancyByDomainOrSubdomain::class,
             Middleware\InitializeTenancyByPath::class,
             Middleware\InitializeTenancyByRequestData::class,
+            
+            // Prevention middleware must run AFTER initialization
+            Middleware\PreventAccessFromCentralDomains::class,
         ];
 
         foreach (array_reverse($tenancyMiddleware) as $middleware) {

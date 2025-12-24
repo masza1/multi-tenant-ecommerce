@@ -15,7 +15,15 @@ class CartController extends Controller
     {
         $cartItems = Cart::where('user_id', auth()->id())
             ->with('product')
-            ->get();
+            ->get()
+            ->map(fn($item) => [
+                'id' => $item->id,
+                'user_id' => $item->user_id,
+                'product_id' => $item->product_id,
+                'quantity' => $item->quantity,
+                'product' => $item->product,
+                'subtotal' => $item->subtotal,
+            ]);
 
         $total = $cartItems->sum('subtotal');
 
@@ -35,26 +43,44 @@ class CartController extends Controller
 
             $product = Product::findOrFail($validated['product_id']);
 
-            // Check stock
-            if ($product->stock < $validated['quantity']) {
+            // Check stock - tidak boleh melebihi stock barang
+            if ($validated['quantity'] > $product->stock) {
                 return back()->with('error', __('messages.insufficient_stock'));
+            }
+
+            // Check if item already in cart
+            $existingCart = Cart::where('user_id', auth()->id())
+                ->where('product_id', $validated['product_id'])
+                ->first();
+
+            // If already in cart, check total quantity
+            if ($existingCart) {
+                $totalQuantity = $existingCart->quantity + $validated['quantity'];
+                if ($totalQuantity > $product->stock) {
+                    return back()->with('error', __('messages.cannot_exceed_stock'));
+                }
             }
 
             // Update or create cart item in transaction
             DB::transaction(function () use ($validated) {
-                Cart::updateOrCreate(
-                    [
+                $cart = Cart::where('user_id', auth()->id())
+                    ->where('product_id', $validated['product_id'])
+                    ->first();
+                
+                if ($cart) {
+                    $cart->increment('quantity', $validated['quantity']);
+                } else {
+                    Cart::create([
                         'user_id' => auth()->id(),
                         'product_id' => $validated['product_id'],
-                    ],
-                    [
-                        'quantity' => DB::raw("quantity + {$validated['quantity']}")
-                    ]
-                );
+                        'quantity' => $validated['quantity'],
+                    ]);
+                }
             });
 
-            return back()->with('success', __('messages.product_added_to_cart'));
+            return redirect()->back()->with('success', __('messages.product_added_to_cart'));
         } catch (\Exception $e) {
+            \Log::error('CartController::store() - Error', ['message' => $e->getMessage(), 'file' => $e->getFile(), 'line' => $e->getLine()]);
             return back()->with('error', __('messages.something_went_wrong'));
         }
     }
@@ -70,7 +96,8 @@ class CartController extends Controller
 
             // Check stock
             if ($cart->product->stock < $validated['quantity']) {
-                return back()->with('error', __('messages.insufficient_stock'));
+                session()->flash('error', __('messages.insufficient_stock'));
+                return back();
             }
 
             // Update in transaction
@@ -78,9 +105,11 @@ class CartController extends Controller
                 $cart->update($validated);
             });
 
-            return back()->with('success', __('messages.cart_updated'));
+            session()->flash('success', __('messages.cart_updated'));
+            return back();
         } catch (\Exception $e) {
-            return back()->with('error', __('messages.something_went_wrong'));
+            session()->flash('error', __('messages.something_went_wrong'));
+            return back();
         }
     }
 
@@ -94,9 +123,11 @@ class CartController extends Controller
                 $cart->delete();
             });
 
-            return back()->with('success', __('messages.item_removed_from_cart'));
+            session()->flash('success', __('messages.item_removed_from_cart'));
+            return back();
         } catch (\Exception $e) {
-            return back()->with('error', __('messages.something_went_wrong'));
+            session()->flash('error', __('messages.something_went_wrong'));
+            return back();
         }
     }
 }

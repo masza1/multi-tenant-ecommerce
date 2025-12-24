@@ -33,6 +33,8 @@ class Product extends Model
         'is_active' => 'boolean',
     ];
 
+    protected $appends = ['image_url'];
+
     public function carts()
     {
         return $this->hasMany(Cart::class);

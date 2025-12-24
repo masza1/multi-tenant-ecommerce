@@ -6,7 +6,6 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Route;
 use App\Http\Middleware\InitializeTenancyByDomain;
 use App\Http\Middleware\SetTenantConnectionForAuth;
-use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
 
 class RouteServiceProvider extends ServiceProvider
 {
@@ -21,7 +20,6 @@ class RouteServiceProvider extends ServiceProvider
         // IMPORTANT: InitializeTenancyByDomain must run BEFORE 'web' so that
         // tenancy is initialized before auth middleware runs
         Route::middleware([
-            PreventAccessFromCentralDomains::class,
             InitializeTenancyByDomain::class,
             'web',
             SetTenantConnectionForAuth::class,

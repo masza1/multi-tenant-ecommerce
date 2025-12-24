@@ -14,8 +14,21 @@ class VerifyTenantDatabase
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Only check if tenancy is active (tenant has been identified)
-        // tenancy()->initialized is a public property, not a method
+        // Check if we're on a tenant domain
+        $host = $request->getHost();
+        $centralDomains = config('tenancy.central_domains', [
+            '127.0.0.1',
+            'localhost',
+            'localhost:8000',
+            '127.0.0.1:8000',
+        ]);
+
+        // If it's a central domain, skip verification
+        if (in_array($host, $centralDomains, true)) {
+            return $next($request);
+        }
+
+        // For tenant domains, verify if tenant is initialized and has a database
         if (tenancy()->initialized && tenancy()->tenant) {
             $tenant = tenancy()->tenant;
 
@@ -70,6 +83,14 @@ class VerifyTenantDatabase
                 // For other exceptions, re-throw
                 throw $e;
             }
+        } elseif (!tenancy()->initialized || !tenancy()->tenant) {
+            // If tenancy is not initialized, it means tenant domain doesn't exist
+            // This is a 404 - store not found
+            \Log::debug('VerifyTenantDatabase: tenant not found', [
+                'host' => $request->getHost(),
+            ]);
+            
+            abort(404, __('messages.tenant_not_found_message'));
         }
 
         return $next($request);

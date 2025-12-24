@@ -18,7 +18,6 @@ use Illuminate\Support\Facades\Route;
 |
 | These routes are wrapped in middleware applied by RouteServiceProvider:
 | - web
-| - PreventAccessFromCentralDomains
 | - InitializeTenancyByDomain
 |
 | VerifyTenantDatabase is applied at route level for additional safety.
@@ -27,9 +26,11 @@ use Illuminate\Support\Facades\Route;
 
 // ===== PUBLIC ROUTES (Guest) =====
 
-// Storefront (Product Catalog)
+// Shop Index - Product Catalog
+Route::middleware([VerifyTenantDatabase::class])->get('/', [ShopController::class, 'index'])->name('shop.index');
+
+// Storefront (Product Catalog) - Individual product page
 Route::middleware([VerifyTenantDatabase::class])->group(function () {
-    Route::get('/', [ShopController::class, 'index'])->name('shop.index');
     Route::get('/products/{product}', [ShopController::class, 'show'])->name('shop.show');
 
     // Auth Routes

@@ -29,34 +29,17 @@ return Application::configure(basePath: dirname(__DIR__))
         
         // Log::debug('Configuring exception handling: ' . $exceptions::class);
         
-        // Handle validation exceptions - return proper 422 response for Inertia
+        // Handle validation exceptions - return proper response for Inertia
         $exceptions->render(function (Illuminate\Validation\ValidationException $e, $request) {
-            // Log the request details for debugging
-            $isInertia = $request->expectsJson() || $request->header('X-Inertia') !== null;
+            $isInertia = $request->header('X-Inertia') !== null;
 
             \Log::debug('ValidationException caught', [
-                'expectsJson' => $request->expectsJson(),
-                'X-Inertia-header' => $request->header('X-Inertia'),
-                'X-Inertia-null-check' => $request->header('X-Inertia') !== null ? 'present' : 'missing',
-                'X-Requested-With' => $request->header('X-Requested-With'),
-                'Content-Type' => $request->header('Content-Type'),
-                'Accept' => $request->header('Accept'),
-                'Route' => $request->route()?->getName(),
-                'isInertia-calculated' => $isInertia ? 'yes' : 'no',
+                'isInertia' => $isInertia,
                 'errors' => $e->errors(),
             ]);
 
-            // For Inertia requests, return 422 with errors in the response
-            if ($isInertia) {
-                \Log::debug('Returning 422 JSON response for validation error');
-                return response()->json([
-                    'message' => 'Validation failed',
-                    'errors' => $e->errors(),
-                ], 422);
-            }
-
-            // For traditional form submissions, redirect back with errors
-            \Log::debug('Redirecting back with validation errors (not an Inertia request)');
+            // For both Inertia and traditional requests, redirect back with errors
+            // Inertia will automatically populate form.errors and trigger onError
             return back()
                 ->withErrors($e->errors())
                 ->withInput();

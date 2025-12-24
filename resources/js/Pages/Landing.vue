@@ -2,27 +2,8 @@
     <div class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50">
         <!-- Toast Notifications -->
         <Toast :toasts="toasts" @remove="removeToast" />
-        <!-- Header with Language Toggle -->
-        <header class="sticky top-0 z-40 bg-white shadow-sm">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-                <div class="text-2xl font-bold text-blue-600">StoreHub</div>
-                <div class="flex gap-4">
-                    <button
-                        v-for="lang in ['en', 'id']"
-                        :key="lang"
-                        @click="setLanguage(lang)"
-                        :class="[
-                            'px-3 py-1 rounded font-medium transition',
-                            currentLang === lang
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        ]"
-                    >
-                        {{ lang.toUpperCase() }}
-                    </button>
-                </div>
-            </div>
-        </header>
+        <!-- Header -->
+        <AppHeader />
 
         <!-- Hero Section -->
         <section class="relative overflow-hidden py-20">
@@ -255,6 +236,7 @@ import { watch } from 'vue';
 import { useI18n } from '@/composables/useI18n';
 import { useFlashToast } from '@/composables/useFlashToast';
 import Toast from '@/Components/Toast.vue';
+import AppHeader from '@/Components/AppHeader.vue';
 
 const page = usePage();
 const { trans, getLocale, setLocale, globalLocale } = useI18n();
@@ -280,6 +262,22 @@ watch(
             setTimeout(() => {
                 window.location.href = redirectUrl;
             }, 1500);
+        }
+    }
+);
+
+// Watch for form validation errors
+watch(
+    () => Object.keys(form.errors).length > 0,
+    (hasErrors) => {
+        if (hasErrors) {
+            // Get the first error message
+            const firstError = Object.values(form.errors)[0];
+            if (Array.isArray(firstError)) {
+                error(firstError[0]);
+            } else {
+                error(firstError);
+            }
         }
     }
 );
@@ -335,9 +333,5 @@ const submitForm = () => {
             }
         },
     });
-};
-
-const setLanguage = (lang) => {
-    setLocale(lang);
 };
 </script>

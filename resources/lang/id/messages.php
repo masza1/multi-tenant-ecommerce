@@ -116,6 +116,7 @@ return [
     'sku' => 'SKU',
     'image' => 'Gambar',
     'click_to_upload' => 'Klik untuk upload',
+    'change_image' => 'Ubah Gambar',
     'saving' => 'Menyimpan...',
     'product_created_successfully' => 'Produk berhasil dibuat!',
     'product_updated_successfully' => 'Produk berhasil diperbarui!',

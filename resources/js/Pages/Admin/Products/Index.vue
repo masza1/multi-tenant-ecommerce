@@ -1,20 +1,6 @@
 <template>
     <div class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50">
-        <header class="sticky top-0 z-40 bg-white shadow-sm">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                <div class="flex justify-between items-center">
-                    <a href="/" class="text-2xl font-bold text-blue-600">StoreHub</a>
-                    <div v-if="$page.props.auth.user" class="flex items-center space-x-4">
-                        <span class="text-gray-700 font-medium">{{ $page.props.auth.user.name }}</span>
-                        <form @submit.prevent="logout" class="inline">
-                            <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition">
-                                {{ trans('messages.logout') }}
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </header>
+        <AppHeader />
 
         <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div class="flex justify-between items-center mb-12">
@@ -22,7 +8,7 @@
                     <h1 class="text-4xl md:text-5xl font-bold text-gray-900">{{ trans('messages.manage_products') }}</h1>
                     <p class="text-gray-600 text-lg mt-2">{{ trans('messages.product_management') }}</p>
                 </div>
-                <a :href="route('products.create')" class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-lg transition">
+                <a href="/admin/products/create" class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-lg transition">
                     + {{ trans('messages.add_product') }}
                 </a>
             </div>
@@ -98,7 +84,7 @@
 
 <script setup>
 import { useI18n } from '@/composables/useI18n';
-import { router } from '@inertiajs/vue3';
+import AppHeader from '@/Components/AppHeader.vue';
 
 const { trans } = useI18n();
 
@@ -108,9 +94,5 @@ defineProps({
 
 const formatPrice = (price) => {
     return new Intl.NumberFormat('id-ID').format(price);
-};
-
-const logout = () => {
-    router.post('/logout');
 };
 </script>

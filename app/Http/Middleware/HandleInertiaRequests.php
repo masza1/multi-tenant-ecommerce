@@ -75,8 +75,8 @@ class HandleInertiaRequests extends Middleware
             ],
             'tenant_redirect_url' => session('tenant_redirect_url'),
             'flash' => [
-                'success' => session('success'),
-                'error' => session('error'),
+                'success' => session()->pull('success'),
+                'error' => session()->pull('error'),
             ],
             'ziggy' => fn () => [
                 ...(new Ziggy)->toArray(),

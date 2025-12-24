@@ -1,6 +1,7 @@
 <template>
     <div class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50">
-        <TenantHeader />
+         <AppHeader />
+        <Toast :toasts="toasts" @remove="removeToast" />
 
         <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <h1 class="text-4xl md:text-5xl font-bold text-gray-900 mb-12">{{ trans('messages.shopping_cart') }}</h1>
@@ -11,7 +12,7 @@
                 </svg>
                 <h3 class="text-2xl font-semibold text-gray-900 mb-2">{{ trans('messages.cart_empty') }}</h3>
                 <p class="text-gray-600 text-lg mb-8">{{ trans('messages.no_products_in_cart') }}</p>
-                <a :href="route('shop.index')" class="inline-block px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition">
+                <a href="/" class="inline-block px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition">
                     {{ trans('messages.continue_shopping') }}
                 </a>
             </div>
@@ -44,20 +45,16 @@
                                         Rp {{ formatPrice(item.product.price) }}
                                     </td>
                                     <td class="px-6 py-4">
-                                        <form :action="route('cart.update', item.id)" method="patch" class="inline flex items-center space-x-2">
-                                            <input type="hidden" name="_token" :value="$page.props.csrf_token" />
-                                            <input type="number" name="quantity" :value="item.quantity" min="1" class="w-20 px-3 py-2 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
-                                            <button type="submit" class="px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg text-sm font-medium transition">{{ trans('messages.update') }}</button>
-                                        </form>
+                                        <div class="flex items-center space-x-2">
+                                            <input type="number" v-model.number="item.quantity" min="1" class="w-20 px-3 py-2 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                                            <button @click="updateForm(item.id, item.quantity)" class="px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg text-sm font-medium transition">{{ trans('messages.update') }}</button>
+                                        </div>
                                     </td>
                                     <td class="px-6 py-4 text-sm font-semibold text-gray-900">
                                         Rp {{ formatPrice(item.subtotal) }}
                                     </td>
                                     <td class="px-6 py-4 text-right">
-                                        <form :action="route('cart.destroy', item.id)" method="delete" class="inline">
-                                            <input type="hidden" name="_token" :value="$page.props.csrf_token" />
-                                            <button type="submit" class="text-red-600 hover:text-red-900 font-medium transition">{{ trans('messages.remove') }}</button>
-                                        </form>
+                                        <button @click="deleteForm(item.id)" class="text-red-600 hover:text-red-900 font-medium transition">{{ trans('messages.remove') }}</button>
                                     </td>
                                 </tr>
                             </tbody>
@@ -71,7 +68,7 @@
                         <p class="text-4xl font-bold text-blue-600">Rp {{ formatPrice(total) }}</p>
                     </div>
                     <div class="flex flex-col sm:flex-row gap-4">
-                        <a :href="route('shop.index')" class="px-8 py-3 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold rounded-lg transition text-center">
+                        <a href="/" class="px-8 py-3 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold rounded-lg transition text-center">
                             {{ trans('messages.continue_shopping') }}
                         </a>
                         <button class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition">
@@ -85,17 +82,73 @@
 </template>
 
 <script setup>
-import TenantHeader from '@/Components/TenantHeader.vue';
+import AppHeader from '@/Components/AppHeader.vue';
+import Toast from '@/Components/Toast.vue';
 import { useI18n } from '@/composables/useI18n';
+import { useToast } from '@/composables/useToast';
+import { router } from '@inertiajs/vue3';
+import { ref, watchEffect } from 'vue';
 
 const { trans } = useI18n();
+const { toast, toasts, removeToast } = useToast();
 
-defineProps({
+const props = defineProps({
     cartItems: Array,
     total: Number,
 });
 
+const cartItems = ref([]);
+const total = ref(0);
+
+// Watch props changes and update local refs
+watchEffect(() => {
+    if (props.cartItems) {
+        cartItems.value = props.cartItems;
+    }
+    if (props.total !== undefined) {
+        total.value = props.total;
+    }
+});
+
 const formatPrice = (price) => {
     return new Intl.NumberFormat('id-ID').format(price);
+};
+
+const updateForm = (itemId, quantity) => {
+    router.patch(route('cart.update', itemId), { quantity }, {
+        onSuccess: (page) => {
+            if (page.props.flash?.error) {
+                toast.error(page.props.flash.error);
+            } else if (page.props.flash?.success) {
+                toast.success(page.props.flash.success);
+            }
+            cartItems.value = page.props.cartItems;
+            total.value = page.props.total;
+        },
+        onError: (errors) => {
+            if (errors.quantity) {
+                toast.error(errors.quantity);
+            } else {
+                toast.error(trans('messages.something_went_wrong'));
+            }
+        }
+    });
+};
+
+const deleteForm = (itemId) => {
+    router.delete(route('cart.destroy', itemId), {
+        onSuccess: (page) => {
+            if (page.props.flash?.error) {
+                toast.error(page.props.flash.error);
+            } else if (page.props.flash?.success) {
+                toast.success(page.props.flash.success);
+            }
+            cartItems.value = page.props.cartItems;
+            total.value = page.props.total;
+        },
+        onError: (errors) => {
+            toast.error(trans('messages.something_went_wrong'));
+        }
+    });
 };
 </script>

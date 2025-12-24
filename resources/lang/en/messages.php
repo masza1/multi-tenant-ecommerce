@@ -116,6 +116,7 @@ return [
     'sku' => 'SKU',
     'image' => 'Image',
     'click_to_upload' => 'Click to upload',
+    'change_image' => 'Change Image',
     'saving' => 'Saving...',
     'product_created_successfully' => 'Product created successfully!',
     'product_updated_successfully' => 'Product updated successfully!',
