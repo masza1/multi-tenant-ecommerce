@@ -6,9 +6,8 @@ use App\Http\Controllers\Tenant\ShopController;
 use App\Http\Controllers\Tenant\CartController;
 use App\Http\Controllers\Tenant\ProductController;
 use App\Http\Controllers\Tenant\Auth\AuthController;
+use App\Http\Middleware\VerifyTenantDatabase;
 use Illuminate\Support\Facades\Route;
-use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
-use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
 
 /*
 |--------------------------------------------------------------------------
@@ -16,19 +15,20 @@ use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
 |--------------------------------------------------------------------------
 |
 | Here you can register the tenant routes for your application.
-| These routes are loaded by the TenantRouteServiceProvider.
+|
+| These routes are wrapped in middleware applied by RouteServiceProvider:
+| - web
+| - PreventAccessFromCentralDomains
+| - InitializeTenancyByDomain
+|
+| VerifyTenantDatabase is applied at route level for additional safety.
 |
 */
 
-Route::middleware([
-    'web',
-    InitializeTenancyByDomain::class,
-    PreventAccessFromCentralDomains::class,
-])->group(function () {
+// ===== PUBLIC ROUTES (Guest) =====
 
-    // ===== PUBLIC ROUTES (Guest) =====
-
-    // Storefront (Product Catalog)
+// Storefront (Product Catalog)
+Route::middleware([VerifyTenantDatabase::class])->group(function () {
     Route::get('/', [ShopController::class, 'index'])->name('shop.index');
     Route::get('/products/{product}', [ShopController::class, 'show'])->name('shop.show');
 
@@ -56,11 +56,12 @@ Route::middleware([
         // ===== ADMIN ONLY ROUTES =====
 
         Route::middleware('role:admin')->group(function () {
-            Route::get('/admin', function () {
-                return redirect()->route('products.index');
-            })->name('admin.dashboard');
-
-            Route::resource('products', ProductController::class);
+            Route::get('/admin', [ProductController::class, 'index'])->name('admin.dashboard');
+            Route::get('/admin/products/create', [ProductController::class, 'create'])->name('products.create');
+            Route::post('/admin/products', [ProductController::class, 'store'])->name('products.store');
+            Route::get('/admin/products/{product}/edit', [ProductController::class, 'edit'])->name('products.edit');
+            Route::patch('/admin/products/{product}', [ProductController::class, 'update'])->name('products.update');
+            Route::delete('/admin/products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
         });
     });
 });

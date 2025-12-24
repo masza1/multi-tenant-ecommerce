@@ -24,17 +24,21 @@ class TenancyServiceProvider extends ServiceProvider
             // Tenant events
             Events\CreatingTenant::class => [],
             Events\TenantCreated::class => [
+                function (Events\TenantCreated $event) {
+                    \Log::info('TenantCreated event fired', [
+                        'tenant_id' => $event->tenant->id,
+                        'tenant_name' => $event->tenant->name,
+                        'template_connection' => config('tenancy.database.template_tenant_connection'),
+                        'tenant_connection_driver' => config('database.connections.tenant.driver'),
+                        'timestamp' => now(),
+                    ]);
+                },
                 JobPipeline::make([
                     Jobs\CreateDatabase::class,
-                    Jobs\MigrateDatabase::class,
-                    // Jobs\SeedDatabase::class,
-
-                    // Your own jobs to prepare the tenant.
-                    // Provision API keys, create S3 buckets, anything you want!
-
+                    \App\Jobs\MigrateTenantDatabase::class, // Use custom migration job to avoid tenancy initialization issues
                 ])->send(function (Events\TenantCreated $event) {
                     return $event->tenant;
-                })->shouldBeQueued(false), // `false` by default, but you probably want to make this `true` for production.
+                })->shouldBeQueued(false)
             ],
             Events\SavingTenant::class => [],
             Events\TenantSaved::class => [],
@@ -60,8 +64,27 @@ class TenancyServiceProvider extends ServiceProvider
             Events\DomainDeleted::class => [],
 
             // Database events
-            Events\DatabaseCreated::class => [],
-            Events\DatabaseMigrated::class => [],
+            Events\DatabaseCreated::class => [
+                function (Events\DatabaseCreated $event) {
+                    \Log::info('DatabaseCreated event fired', [
+                        'tenant_id' => $event->tenant->id,
+                        'database_name' => $event->tenant->database()->getName(),
+                        'timestamp' => now(),
+                    ]);
+                },
+            ],
+            Events\DatabaseMigrated::class => [
+                function (Events\DatabaseMigrated $event) {
+                    \Log::info('DatabaseMigrated event fired', [
+                        'tenant_id' => $event->tenant->id,
+                        'database_name' => $event->tenant->database()->getName(),
+                        'timestamp' => now(),
+                    ]);
+                },
+            ],
+
+            // Catch migration errors
+            'Stancl\\Tenancy\\Events\\DatabaseMigrationFailed' => [],
             Events\DatabaseSeeded::class => [],
             Events\DatabaseRolledBack::class => [],
             Events\DatabaseDeleted::class => [],
@@ -100,7 +123,6 @@ class TenancyServiceProvider extends ServiceProvider
     public function boot()
     {
         $this->bootEvents();
-        $this->mapRoutes();
 
         $this->makeTenancyMiddlewareHighestPriority();
     }
@@ -116,16 +138,6 @@ class TenancyServiceProvider extends ServiceProvider
                 Event::listen($event, $listener);
             }
         }
-    }
-
-    protected function mapRoutes()
-    {
-        $this->app->booted(function () {
-            if (file_exists(base_path('routes/tenant.php'))) {
-                Route::namespace(static::$controllerNamespace)
-                    ->group(base_path('routes/tenant.php'));
-            }
-        });
     }
 
     protected function makeTenancyMiddlewareHighestPriority()

@@ -38,6 +38,12 @@ class HandleInertiaRequests extends Middleware
                     ? \App\Models\Cart::where('user_id', $request->user()->id)->sum('quantity')
                     : 0,
             ],
+            'locale' => app()->getLocale(),
+            'tenant_redirect_url' => session('tenant_redirect_url'),
+            'flash' => [
+                'success' => session('success'),
+                'error' => session('error'),
+            ],
             'ziggy' => fn () => [
                 ...(new Ziggy)->toArray(),
                 'location' => $request->url(),

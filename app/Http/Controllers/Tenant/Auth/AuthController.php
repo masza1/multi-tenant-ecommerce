@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
 
@@ -18,28 +19,35 @@ class AuthController extends Controller
 
     public function register(Request $request)
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
-        ]);
+        try {
+            $validated = $request->validate([
+                'name' => ['required', 'string', 'max:255'],
+                'email' => ['required', 'email', 'max:255', 'unique:users'],
+                'password' => ['required', 'string', 'min:8', 'confirmed'],
+            ]);
 
-        // First user in tenant becomes admin
-        $isFirstUser = User::count() === 0;
+            // First user in tenant becomes admin
+            $isFirstUser = User::count() === 0;
 
-        $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-            'role' => $isFirstUser ? 'admin' : 'customer',
-        ]);
+            // Create user in transaction
+            $user = DB::transaction(function () use ($validated, $isFirstUser) {
+                return User::create([
+                    'name' => $validated['name'],
+                    'email' => $validated['email'],
+                    'password' => Hash::make($validated['password']),
+                    'role' => $isFirstUser ? 'admin' : 'customer',
+                ]);
+            });
 
-        Auth::login($user);
+            Auth::login($user);
 
-        return redirect()->route('shop.index')
-            ->with('success', $isFirstUser
-                ? 'Akun admin berhasil dibuat!'
-                : 'Registrasi berhasil!');
+            return redirect()->route('shop.index')
+                ->with('success', $isFirstUser
+                    ? __('messages.admin_account_created')
+                    : __('messages.registration_successful'));
+        } catch (\Exception $e) {
+            return back()->with('error', __('messages.registration_failed'))->withInput();
+        }
     }
 
     public function showLogin()
@@ -49,20 +57,29 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        $credentials = $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required'],
-        ]);
+        try {
+            $credentials = $request->validate([
+                'email' => ['required', 'email'],
+                'password' => ['required'],
+            ]);
 
-        if (Auth::attempt($credentials, $request->boolean('remember'))) {
-            $request->session()->regenerate();
+            if (Auth::attempt($credentials, $request->boolean('remember'))) {
+                $request->session()->regenerate();
 
-            return redirect()->intended(route('shop.index'));
+                // Role-based redirect
+                $intendedUrl = auth()->user()->isAdmin()
+                    ? route('admin.dashboard')
+                    : route('shop.index');
+
+                return redirect()->intended($intendedUrl)
+                    ->with('success', __('messages.logged_in_successfully'));
+            }
+
+            return back()->with('error', __('messages.invalid_credentials'))
+                ->onlyInput('email');
+        } catch (\Exception $e) {
+            return back()->with('error', __('messages.login_failed'));
         }
-
-        return back()->withErrors([
-            'email' => 'Email atau password salah.',
-        ])->onlyInput('email');
     }
 
     public function logout(Request $request)

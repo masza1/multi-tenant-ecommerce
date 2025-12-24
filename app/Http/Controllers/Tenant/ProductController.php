@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Tenant;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
@@ -39,24 +40,31 @@ class ProductController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'price' => ['required', 'numeric', 'min:0'],
-            'stock' => ['required', 'integer', 'min:0'],
-            'image' => ['nullable', 'image', 'max:2048'],
-            'is_active' => ['boolean'],
-        ]);
+        try {
+            $validated = $request->validate([
+                'name' => ['required', 'string', 'max:255'],
+                'description' => ['nullable', 'string'],
+                'price' => ['required', 'numeric', 'min:0'],
+                'stock' => ['required', 'integer', 'min:0'],
+                'image' => ['nullable', 'image', 'max:2048'],
+                'is_active' => ['boolean'],
+            ]);
 
-        // Handle image upload
-        if ($request->hasFile('image')) {
-            $validated['image_path'] = $request->file('image')->store('products', 'public');
+            // Create product in transaction
+            DB::transaction(function () use ($request, &$validated) {
+                // Handle image upload
+                if ($request->hasFile('image')) {
+                    $validated['image_path'] = $request->file('image')->store('products', 'public');
+                }
+
+                Product::create($validated);
+            });
+
+            return redirect()->route('products.index')
+                ->with('success', __('messages.product_created_successfully'));
+        } catch (\Exception $e) {
+            return back()->with('error', __('messages.product_creation_failed'))->withInput();
         }
-
-        Product::create($validated);
-
-        return redirect()->route('products.index')
-            ->with('success', 'Produk berhasil ditambahkan!');
     }
 
     public function edit(Product $product)
@@ -68,40 +76,54 @@ class ProductController extends Controller
 
     public function update(Request $request, Product $product)
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'price' => ['required', 'numeric', 'min:0'],
-            'stock' => ['required', 'integer', 'min:0'],
-            'image' => ['nullable', 'image', 'max:2048'],
-            'is_active' => ['boolean'],
-        ]);
+        try {
+            $validated = $request->validate([
+                'name' => ['required', 'string', 'max:255'],
+                'description' => ['nullable', 'string'],
+                'price' => ['required', 'numeric', 'min:0'],
+                'stock' => ['required', 'integer', 'min:0'],
+                'image' => ['nullable', 'image', 'max:2048'],
+                'is_active' => ['boolean'],
+            ]);
 
-        // Handle image upload
-        if ($request->hasFile('image')) {
-            // Delete old image
-            if ($product->image_path) {
-                Storage::disk('public')->delete($product->image_path);
-            }
+            // Update product in transaction
+            DB::transaction(function () use ($request, $product, &$validated) {
+                // Handle image upload
+                if ($request->hasFile('image')) {
+                    // Delete old image
+                    if ($product->image_path) {
+                        Storage::disk('public')->delete($product->image_path);
+                    }
 
-            $validated['image_path'] = $request->file('image')->store('products', 'public');
+                    $validated['image_path'] = $request->file('image')->store('products', 'public');
+                }
+
+                $product->update($validated);
+            });
+
+            return redirect()->route('products.index')
+                ->with('success', __('messages.product_updated_successfully'));
+        } catch (\Exception $e) {
+            return back()->with('error', __('messages.product_update_failed'))->withInput();
         }
-
-        $product->update($validated);
-
-        return redirect()->route('products.index')
-            ->with('success', 'Produk berhasil diperbarui!');
     }
 
     public function destroy(Product $product)
     {
-        // Delete image
-        if ($product->image_path) {
-            Storage::disk('public')->delete($product->image_path);
+        try {
+            // Delete product in transaction
+            DB::transaction(function () use ($product) {
+                // Delete image
+                if ($product->image_path) {
+                    Storage::disk('public')->delete($product->image_path);
+                }
+
+                $product->delete();
+            });
+
+            return back()->with('success', __('messages.product_deleted_successfully'));
+        } catch (\Exception $e) {
+            return back()->with('error', __('messages.product_deletion_failed'));
         }
-
-        $product->delete();
-
-        return back()->with('success', 'Produk berhasil dihapus!');
     }
 }

@@ -30,4 +30,12 @@ class Tenant extends BaseTenant implements TenantWithDatabase
             'owner_email',
         ];
     }
+
+    /**
+     * Get the domains associated with the tenant
+     */
+    public function domains()
+    {
+        return $this->hasMany(\Stancl\Tenancy\Database\Models\Domain::class, 'tenant_id');
+    }
 }
