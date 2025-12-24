@@ -38,4 +38,22 @@ class Tenant extends BaseTenant implements TenantWithDatabase
     {
         return $this->hasMany(\Stancl\Tenancy\Database\Models\Domain::class, 'tenant_id');
     }
+
+    /**
+     * Get the template connection name for this tenant.
+     *
+     * Overrides the trait method to ensure we always have a valid connection name.
+     * Falls back to the template connection if the tenant's db_connection is empty.
+     */
+    public function getTemplateConnectionName(): string
+    {
+        $connection = $this->getInternal('db_connection');
+
+        // If db_connection is empty or null, use template connection
+        if (empty($connection)) {
+            return config('tenancy.database.template_tenant_connection', 'tenant');
+        }
+
+        return $connection;
+    }
 }

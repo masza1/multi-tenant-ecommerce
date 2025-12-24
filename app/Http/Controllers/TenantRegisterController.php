@@ -6,7 +6,6 @@ use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Stancl\Tenancy\Database\Models\Domain;
@@ -26,6 +25,10 @@ class TenantRegisterController extends Controller
             'method' => $request->method(),
         ]);
 
+        // Extract base domain from the request host
+        $host = $request->getHost();
+        $baseDomain = implode('.', array_slice(explode('.', $host), -2));
+
         \Log::debug('Starting form validation');
         $validated = $request->validate([
             'store_name' => ['required', 'string', 'max:255'],
@@ -35,9 +38,9 @@ class TenantRegisterController extends Controller
                 'lowercase',
                 'regex:/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/',
                 'max:50',
-                function ($attribute, $value, $fail) {
+                function ($attribute, $value, $fail) use ($baseDomain) {
                     // Check if domain already exists
-                    $domain = $value . '.localhost';
+                    $domain = $value . '.' . $baseDomain;
                     if (Domain::where('domain', $domain)->exists()) {
                         \Log::debug('Validation failure: subdomain already taken', ['subdomain' => $value]);
                         $fail(__('messages.subdomain_already_taken'));
@@ -63,7 +66,7 @@ class TenantRegisterController extends Controller
             // Step 1: Create tenant and domain in central database
             // We use a closure to defer event processing until after transaction commits
             $tenant = null;
-            DB::connection('central')->transaction(function () use ($validated, &$tenant) {
+            DB::connection('central')->transaction(function () use ($validated, $baseDomain, &$tenant) {
                 $tenantId = $this->generateUniqueTenantId($validated['store_name']);
 
                 \Log::info('Creating tenant record', [
@@ -81,7 +84,7 @@ class TenantRegisterController extends Controller
 
                 // Create domain mapping
                 $domain = $tenant->domains()->create([
-                    'domain' => $validated['subdomain'] . '.localhost',
+                    'domain' => $validated['subdomain'] . '.' . $baseDomain,
                 ]);
 
                 \Log::info('Domain created successfully', [
@@ -125,43 +128,18 @@ class TenantRegisterController extends Controller
                 'email' => $newUser->email,
             ]);
 
-            // Step 3: Auto-login the newly created admin user
-            \Log::info('Auto-authenticating admin user', [
-                'tenant_id' => $tenant->id,
-                'user_id' => $newUser->id,
-            ]);
-
-            // Refresh tenant from database to ensure internal db keys are loaded
-            // The CreateDatabase job has set tenancy_db_connection by now
-            $tenant->refresh();
-
-            \Log::debug('Tenant refreshed with internal keys', [
-                'tenant_id' => $tenant->id,
-                'db_connection' => $tenant->getInternal('db_connection'),
-                'db_name' => $tenant->getInternal('db_name'),
-            ]);
-
-            // Initialize tenancy for the new tenant
-            tenancy()->initialize($tenant);
-
-            // Log in the user
-            Auth::guard('web')->login($newUser);
-
-            // End tenancy to return to central context
-            tenancy()->end();
-
-            \Log::info('Admin user authenticated successfully', [
-                'tenant_id' => $tenant->id,
-                'user_id' => $newUser->id,
-            ]);
-
             // Clean up the temporary connection
             DB::purge('tenant_temp');
+
+            \Log::info('Tenant registration completed, user will login manually', [
+                'tenant_id' => $tenant->id,
+            ]);
 
             // Step 4: Generate redirect URL and return success
             $port = $request->getPort();
             $portStr = in_array($port, [80, 443]) ? '' : ':' . $port;
-            $redirectUrl = 'http://' . $validated['subdomain'] . '.localhost' . $portStr . '/admin';
+            $scheme = $request->getScheme();
+            $redirectUrl = $scheme . '://' . $validated['subdomain'] . '.' . $baseDomain . $portStr . '/login';
 
             \Log::info('Tenant registration completed successfully', [
                 'tenant_id' => $tenant->id,

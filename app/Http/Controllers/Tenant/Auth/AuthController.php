@@ -63,6 +63,11 @@ class AuthController extends Controller
                 'password' => ['required'],
             ]);
 
+            \Log::debug('Login attempt', [
+                'email' => $credentials['email'],
+                'tenant' => tenancy()->tenant ? tenancy()->tenant->id : 'not_initialized',
+            ]);
+
             if (Auth::attempt($credentials, $request->boolean('remember'))) {
                 $request->session()->regenerate();
 
@@ -75,9 +80,16 @@ class AuthController extends Controller
                     ->with('success', __('messages.logged_in_successfully'));
             }
 
+            \Log::debug('Login failed - invalid credentials', [
+                'email' => $credentials['email'],
+            ]);
+
             return back()->with('error', __('messages.invalid_credentials'))
                 ->onlyInput('email');
         } catch (\Exception $e) {
+            \Log::error('Login exception', [
+                'error' => $e->getMessage(),
+            ]);
             return back()->with('error', __('messages.login_failed'));
         }
     }
@@ -89,6 +101,6 @@ class AuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('shop.index');
+        return redirect('/');
     }
 }

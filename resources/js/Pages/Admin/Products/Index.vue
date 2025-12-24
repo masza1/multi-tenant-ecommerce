@@ -1,76 +1,96 @@
 <template>
-    <div class="min-h-screen bg-gray-50">
-        <header class="bg-white shadow-sm">
-            <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex justify-between items-center h-16">
-                    <a href="/" class="flex items-center space-x-2">
-                        <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                            <span class="text-white font-bold">S</span>
-                        </div>
-                        <span class="text-xl font-bold text-gray-900">Admin Toko</span>
-                    </a>
+    <div class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50">
+        <header class="sticky top-0 z-40 bg-white shadow-sm">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                <div class="flex justify-between items-center">
+                    <a href="/" class="text-2xl font-bold text-blue-600">StoreHub</a>
+                    <div v-if="$page.props.auth.user" class="flex items-center space-x-4">
+                        <span class="text-gray-700 font-medium">{{ $page.props.auth.user.name }}</span>
+                        <form @submit.prevent="logout" class="inline">
+                            <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition">
+                                {{ trans('messages.logout') }}
+                            </button>
+                        </form>
+                    </div>
                 </div>
-            </nav>
+            </div>
         </header>
 
-        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div class="flex justify-between items-center mb-8">
-                <h1 class="text-3xl font-bold text-gray-900">{{ trans('messages.manage_products') }}</h1>
-                <a :href="route('products.create')" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg">
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <div class="flex justify-between items-center mb-12">
+                <div>
+                    <h1 class="text-4xl md:text-5xl font-bold text-gray-900">{{ trans('messages.manage_products') }}</h1>
+                    <p class="text-gray-600 text-lg mt-2">{{ trans('messages.product_management') }}</p>
+                </div>
+                <a :href="route('products.create')" class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-lg transition">
                     + {{ trans('messages.add_product') }}
                 </a>
             </div>
 
-            <div v-if="!products || products.data.length === 0" class="text-center py-20 bg-white rounded-lg">
-                <p class="text-gray-600 mb-4">{{ trans('messages.no_products_yet') }}</p>
+            <div v-if="!products || products.data.length === 0" class="bg-white rounded-2xl shadow-lg p-16 text-center">
+                <svg class="w-32 h-32 text-gray-300 mx-auto mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                </svg>
+                <h3 class="text-2xl font-semibold text-gray-900 mb-2">{{ trans('messages.no_products_yet') }}</h3>
+                <p class="text-gray-600 text-lg">{{ trans('messages.no_products_yet') }}</p>
             </div>
 
-            <div v-else class="bg-white rounded-lg shadow overflow-hidden">
-                <table class="min-w-full">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{{ trans('messages.product') }}</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{{ trans('messages.price') }}</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{{ trans('messages.stock') }}</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{{ trans('messages.status') }}</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">{{ trans('messages.actions') }}</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y">
-                        <tr v-for="product in products.data" :key="product.id" class="hover:bg-gray-50">
-                            <td class="px-6 py-4">
-                                <div class="flex items-center">
-                                    <img v-if="product.image_url" :src="product.image_url" class="w-12 h-12 rounded object-cover mr-3" />
-                                    <div>
-                                        <div class="font-medium text-gray-900">{{ product.name }}</div>
+            <div v-else class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-100 border-b border-gray-200">
+                            <tr>
+                                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">{{ trans('messages.sku') }}</th>
+                                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">{{ trans('messages.product') }}</th>
+                                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">{{ trans('messages.price') }}</th>
+                                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">{{ trans('messages.stock') }}</th>
+                                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">{{ trans('messages.status') }}</th>
+                                <th class="px-6 py-4 text-right text-sm font-semibold text-gray-900">{{ trans('messages.actions') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            <tr v-for="product in products.data" :key="product.id" class="hover:bg-gray-50 transition">
+                                <td class="px-6 py-4">
+                                    <span class="text-sm font-mono text-gray-700 bg-gray-100 px-3 py-1 rounded">{{ product.sku }}</span>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center space-x-3">
+                                        <img v-if="product.image_url" :src="product.image_url" class="w-12 h-12 rounded-lg object-cover" />
+                                        <div>
+                                            <div class="font-semibold text-gray-900">{{ product.name }}</div>
+                                        </div>
                                     </div>
-                                </div>
-                            </td>
-                            <td class="px-6 py-4 text-gray-900">
-                                Rp {{ formatPrice(product.price) }}
-                            </td>
-                            <td class="px-6 py-4 text-gray-900">
-                                {{ product.stock }}
-                            </td>
-                            <td class="px-6 py-4">
-                                <span :class="product.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'" class="px-2 py-1 text-xs font-semibold rounded-full">
-                                    {{ product.is_active ? trans('messages.active') : trans('messages.inactive') }}
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 text-right text-sm font-medium">
-                                <a :href="route('products.edit', product.id)" class="text-blue-600 hover:text-blue-900 mr-4">
-                                    {{ trans('messages.edit') }}
-                                </a>
-                                <form :action="route('products.destroy', product.id)" method="delete" class="inline">
-                                    <input type="hidden" name="_token" :value="$page.props.csrf_token" />
-                                    <button type="submit" :onclick="`return confirm('${trans('messages.confirm_delete')}')`" class="text-red-600 hover:text-red-900">
-                                        {{ trans('messages.delete') }}
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                                </td>
+                                <td class="px-6 py-4 text-gray-900 font-medium">
+                                    Rp {{ formatPrice(product.price) }}
+                                </td>
+                                <td class="px-6 py-4 text-gray-900">
+                                    <span class="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                                        {{ product.stock }} {{ trans('messages.stock') }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span :class="product.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'" class="inline-block px-3 py-1 rounded-full text-sm font-semibold">
+                                        {{ product.is_active ? trans('messages.active') : trans('messages.inactive') }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-right">
+                                    <div class="flex justify-end gap-3">
+                                        <a :href="route('products.edit', product.id)" class="text-blue-600 hover:text-blue-900 font-medium transition">
+                                            {{ trans('messages.edit') }}
+                                        </a>
+                                        <form :action="route('products.destroy', product.id)" method="delete" class="inline">
+                                            <input type="hidden" name="_token" :value="$page.props.csrf_token" />
+                                            <button type="submit" :onclick="`return confirm('${trans('messages.confirm_delete')}')`" class="text-red-600 hover:text-red-900 font-medium transition">
+                                                {{ trans('messages.delete') }}
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </main>
     </div>
@@ -78,6 +98,7 @@
 
 <script setup>
 import { useI18n } from '@/composables/useI18n';
+import { router } from '@inertiajs/vue3';
 
 const { trans } = useI18n();
 
@@ -87,5 +108,9 @@ defineProps({
 
 const formatPrice = (price) => {
     return new Intl.NumberFormat('id-ID').format(price);
+};
+
+const logout = () => {
+    router.post('/logout');
 };
 </script>

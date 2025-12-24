@@ -16,13 +16,13 @@
                     @click="goToLanding"
                     class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
                 >
-                    Kembali ke Beranda
+                    {{ safeTranslate("home") }}
                 </button>
                 <button
                     @click="goBack"
                     class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
                 >
-                    Kembali
+                    {{ safeTranslate("back") }}
                 </button>
             </div>
         </div>
@@ -30,6 +30,10 @@
 </template>
 
 <script setup>
+import { useI18n } from "@/composables/useI18n";
+
+const { trans } = useI18n();
+
 defineProps({
     title: {
         type: String,
@@ -40,6 +44,26 @@ defineProps({
         default: "Halaman yang Anda cari tidak ada atau telah dipindahkan.",
     },
 });
+
+// Fallback translations for error pages
+const fallbackMessages = {
+    home: "Back to Home",
+    back: "Go Back",
+};
+
+// Helper function to safely get translation
+const safeTranslate = (key) => {
+    try {
+        const translated = trans(`messages.${key}`);
+        // If trans returns the key itself, it means translation failed
+        if (translated === `messages.${key}`) {
+            return fallbackMessages[key] || key;
+        }
+        return translated;
+    } catch {
+        return fallbackMessages[key] || key;
+    }
+};
 
 const goToLanding = () => {
     const port = window.location.port ? `:${window.location.port}` : "";

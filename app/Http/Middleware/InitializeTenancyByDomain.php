@@ -4,6 +4,8 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Stancl\Tenancy\Database\Models\Domain;
 use Stancl\Tenancy\Facades\Tenancy;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -32,13 +34,17 @@ class InitializeTenancyByDomain
 
             // Try to find the tenant by domain
             try {
-                $domain = \App\Models\Domain::where('domain', $host)->first();
+                $domain = Domain::where('domain', $host)->first();
 
                 if ($domain && $domain->tenant_id) {
                     // Initialize tenancy for this tenant
                     tenancy()->initialize(
                         $domain->tenant
                     );
+
+                    // Set default database connection to tenant for all subsequent queries
+                    // This ensures auth and other queries use the correct database
+                    DB::setDefaultConnection('tenant');
 
                     return $next($request);
                 }
@@ -51,3 +57,4 @@ class InitializeTenancyByDomain
         return $next($request);
     }
 }
+

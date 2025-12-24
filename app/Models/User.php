@@ -36,6 +36,21 @@ class User extends Authenticatable
     ];
 
     /**
+     * Get the name of the connection associated with the model.
+     * If tenancy is initialized, use tenant connection; otherwise use default (central).
+     */
+    public function getConnectionName()
+    {
+        // If tenancy is initialized, use tenant connection
+        if (tenancy()->initialized) {
+            return 'tenant';
+        }
+
+        // Otherwise use default connection (usually 'central')
+        return parent::getConnectionName();
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -64,3 +79,4 @@ class User extends Authenticatable
         return $this->role === 'admin';
     }
 }
+

@@ -4,7 +4,8 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Route;
-use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
+use App\Http\Middleware\InitializeTenancyByDomain;
+use App\Http\Middleware\SetTenantConnectionForAuth;
 use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
 
 class RouteServiceProvider extends ServiceProvider
@@ -17,10 +18,14 @@ class RouteServiceProvider extends ServiceProvider
     protected function registerTenantRoutes(): void
     {
         // Register tenant routes with proper middleware
+        // IMPORTANT: InitializeTenancyByDomain must run BEFORE 'web' so that
+        // tenancy is initialized before auth middleware runs
         Route::middleware([
-            'web',
             PreventAccessFromCentralDomains::class,
             InitializeTenancyByDomain::class,
+            'web',
+            SetTenantConnectionForAuth::class,
         ])->group(base_path('routes/tenant.php'));
     }
 }
+

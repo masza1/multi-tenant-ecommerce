@@ -30,15 +30,49 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        // Load all translations from language files
+        $locale = app()->getLocale();
+        $translations = [
+            'en' => include resource_path('lang/en/messages.php'),
+            'id' => include resource_path('lang/id/messages.php'),
+        ];
+        
+        // Convert flat array to dotted format for i18n
+        $enMessages = [];
+        foreach ($translations['en'] as $key => $value) {
+            $enMessages["messages.$key"] = $value;
+        }
+        
+        $idMessages = [];
+        foreach ($translations['id'] as $key => $value) {
+            $idMessages["messages.$key"] = $value;
+        }
+
+        // Try to get user, but handle case where tenancy context is missing
+        $user = null;
+        $cartCount = 0;
+        
+        try {
+            $user = $request->user();
+            if ($user) {
+                $cartCount = \App\Models\Cart::where('user_id', $user->id)->sum('quantity');
+            }
+        } catch (\Exception $e) {
+            // If user query fails (e.g., table doesn't exist in current context), return null
+            $user = null;
+        }
+
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user(),
-                'cartCount' => $request->user()
-                    ? \App\Models\Cart::where('user_id', $request->user()->id)->sum('quantity')
-                    : 0,
+                'user' => $user,
+                'cartCount' => $cartCount,
             ],
-            'locale' => app()->getLocale(),
+            'locale' => $locale,
+            'translations' => [
+                'en' => $enMessages,
+                'id' => $idMessages,
+            ],
             'tenant_redirect_url' => session('tenant_redirect_url'),
             'flash' => [
                 'success' => session('success'),

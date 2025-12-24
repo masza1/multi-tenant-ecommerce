@@ -42,6 +42,13 @@ class VerifyTenantDatabase
                 \Log::debug('VerifyTenantDatabase: tenant database verified', [
                     'tenant_id' => $tenant->id,
                 ]);
+            } catch (\Stancl\Tenancy\Exceptions\DatabaseManagerNotRegisteredException $e) {
+                // Database manager not registered - likely tenant database not created yet
+                \Log::warning('VerifyTenantDatabase: database manager not registered', [
+                    'tenant_id' => $tenant->id,
+                    'error' => $e->getMessage(),
+                ]);
+                abort(503, __('messages.tenant_not_ready_message', ['Default' => 'Tenant database is not ready yet. Please try again in a moment.']));
             } catch (\PDOException $e) {
                 // If connection fails (database doesn't exist), return 404
                 if (strpos($e->getMessage(), 'does not exist') !== false ||

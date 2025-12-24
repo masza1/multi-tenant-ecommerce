@@ -78,14 +78,14 @@
                     href="/"
                     class="inline-block px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-lg transition duration-200"
                 >
-                    {{ trans("messages.home") }}
+                    {{ safeTranslate("home") }}
                 </Link>
 
                 <button
                     @click="goBack"
                     class="inline-block px-8 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold rounded-lg transition duration-200"
                 >
-                    {{ trans("messages.back") }}
+                    {{ safeTranslate("back") }}
                 </button>
             </div>
 
@@ -94,10 +94,10 @@
                 <p class="text-gray-600 text-sm">
                     {{
                         status === 404
-                            ? trans("messages.not_found")
+                            ? safeTranslate("not_found")
                             : status === 403
-                            ? trans("messages.access_denied")
-                            : trans("messages.something_went_wrong")
+                            ? safeTranslate("access_denied")
+                            : safeTranslate("something_went_wrong")
                     }}
                 </p>
             </div>
@@ -108,10 +108,11 @@
 <script setup>
 import { Link } from "@inertiajs/vue3";
 import { useI18n } from "@/composables/useI18n";
+import { computed } from "vue";
 
 const { trans } = useI18n();
 
-defineProps({
+const props = defineProps({
     status: Number,
     title: String,
     message: String,
@@ -120,6 +121,29 @@ defineProps({
 
 const isDevelopment =
     import.meta.env.DEV || window.location.hostname === "localhost";
+
+// Fallback translations for error pages
+const fallbackMessages = {
+    home: "Home",
+    back: "Back",
+    not_found: "The page you are looking for could not be found.",
+    access_denied: "You do not have permission to access this resource.",
+    something_went_wrong: "Something went wrong. Please try again later."
+};
+
+// Helper function to safely get translation
+const safeTranslate = (key) => {
+    try {
+        const translated = trans(`messages.${key}`);
+        // If trans returns the key itself, it means translation failed
+        if (translated === `messages.${key}`) {
+            return fallbackMessages[key] || key;
+        }
+        return translated;
+    } catch {
+        return fallbackMessages[key] || key;
+    }
+};
 
 const getGradientClass = (status) => {
     switch (status) {
