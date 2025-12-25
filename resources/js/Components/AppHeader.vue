@@ -71,6 +71,6 @@ const hasRoute = (name) => {
 };
 
 const logout = () => {
-    router.post('/logout');
+    router.post(route('logout'));
 };
 </script>
