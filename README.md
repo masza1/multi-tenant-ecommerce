@@ -69,12 +69,12 @@ Imagine you're building a platform for 100 different online stores:
 - **Email Verification** (optional email confirmation)
 
 ### ✅ Testing
-- **24 focused tests** - All passing
-- **Feature tests** (9 cart and shop tests)
-- **Unit tests** (15 model and policy tests)
+- **1 comprehensive integration test** - All passing
+- **Complete flow coverage** - Setup, CRUD, isolation, data persistence
+- **18 assertions** - Full multi-tenant verification
 - **100% pass rate** - No failing tests
-- **~15 seconds** execution time
-- **57 assertions** total
+- **~5 seconds** execution time
+- **Optional cleanup** - Keep databases for inspection
 
 ## 📋 Requirements
 
@@ -162,246 +162,63 @@ php artisan serve
 
 ## 🧪 Testing
 
+### Multi-Tenant Integration Test
+
+The complete integration test creates a full multi-tenant environment with real databases:
+
+```bash
+# Run the comprehensive multi-tenant test
+php artisan test tests/Feature/MultiTenantAllTest.php
+
+# Expected output:
+# Tests:    1 passed (23 assertions)
+# Duration: ~3 seconds
+```
+
+**This single test covers:**
+- ✅ Creates `multitenant_test` database (if not exists)
+- ✅ Runs landlord migrations (creates tenant and domain tables)
+- ✅ Creates 3 tenants with their own databases
+- ✅ Creates 3 users in first tenant database
+- ✅ Creates 10 products in first tenant database
+- ✅ Tests product CRUD operations (create, read, update, delete)
+- ✅ Tests shopping experience (browse, pagination)
+- ✅ Tests cart CRUD operations (add, view, update, delete)
+- ✅ Verifies complete data isolation between tenants
+- ✅ Verifies data persistence in databases
+
+### Test Configuration
+
+You can control cleanup behavior via environment variables:
+
+```bash
+# Run test WITHOUT cleanup (keep databases for inspection)
+SKIP_CLEANUP=true php artisan test tests/Feature/MultiTenantAllTest.php
+
+# Run test WITH cleanup (default - removes all test data)
+php artisan test tests/Feature/MultiTenantAllTest.php
+```
+
+**What gets cleaned up:**
+- `multitenant_test` database (dropped)
+- All `tenant_*` test databases (dropped)
+- All tenant records from central database
+
+**Use `SKIP_CLEANUP=true` when:**
+- Debugging test failures
+- Inspecting test data in PostgreSQL
+- Verifying database isolation
+- Running tests during development
+
 ### Running All Tests
 
 ```bash
-# Run all 24 tests (focused cart and shop tests)
+# Run all tests (includes integration test)
 php artisan test
 
 # Expected output:
-# Tests: 24 passed (57 assertions)
-# Duration: ~15 seconds
-```
-
-### Detailed Test Suite
-
-The test suite includes **24 comprehensive tests** organized in 4 files:
-
-#### **Feature Tests (9 tests)**
-
-**CartManagementTest.php (6 tests)**
-```bash
-php artisan test tests/Feature/CartManagementTest.php
-
-# Tests included:
-# ✔ Authenticated user can view cart
-# ✔ Cart shows only user own items
-# ✔ Can add product to cart database
-# ✔ Can update cart in database
-# ✔ Can delete cart from database
-# ✔ User cannot modify other user cart
-```
-
-**ShopBrowsingTest.php (3 tests)**
-```bash
-php artisan test tests/Feature/ShopBrowsingTest.php
-
-# Tests included:
-# ✔ Shop page accessible
-# ✔ Shop page pagination
-# ✔ Cart count for authenticated user
-```
-
-#### **Unit Tests (15 tests)**
-
-**CartModelTest.php (8 tests)**
-```bash
-php artisan test tests/Unit/CartModelTest.php
-
-# Tests relationships and model behavior:
-# ✔ Cart belongs to user
-# ✔ Cart belongs to product
-# ✔ Product relationship eager loaded
-# ✔ Subtotal calculates correctly
-# ✔ Subtotal with decimal prices
-# ✔ Can mass assign attributes
-# ✔ Quantity cast to integer
-# ✔ Cart has timestamps
-```
-
-**CartPolicyTest.php (7 tests)**
-```bash
-php artisan test tests/Unit/CartPolicyTest.php
-
-# Tests authorization and policies:
-# ✔ User can update own cart
-# ✔ User cannot update other users cart
-# ✔ User can delete own cart
-# ✔ User cannot delete other users cart
-# ✔ User can view own cart
-# ✔ User cannot view other users cart
-# ✔ Authenticated user can create cart
-```
-
-### Running Tests with Options
-
-```bash
-# Run tests with detailed output (testdox format)
-php artisan test --testdox
-
-# Run tests with coverage report
-php artisan test --coverage
-
-# Run a specific test file
-php artisan test tests/Feature/CartManagementTest.php
-
-# Run a specific test method
-php artisan test tests/Feature/CartManagementTest.php --filter test_authenticated_user_can_view_cart
-
-# Run tests in parallel (faster)
-php artisan test --parallel
-
-# Run with verbose output
-php artisan test -v
-
-# Run tests and stop on first failure
-php artisan test --stop-on-failure
-
-# Run tests in specific order
-php artisan test --order-by=created
-```
-
-### Understanding the Test Structure
-
-#### Cart Management Tests
-These tests verify core shopping cart functionality:
-- **Viewing**: Users can view their cart, isolated from other users
-- **Database Operations**: Direct CRUD operations on cart items
-- **Authorization**: Users cannot modify other users' carts
-- **Relationships**: Cart items are properly linked to users and products
-
-#### Shop Browsing Tests
-These tests verify the product catalog and shopping experience:
-- **Page Access**: Shop page is accessible and loads correctly
-- **Pagination**: Products are properly paginated
-- **Cart Count**: Cart count is correctly displayed for authenticated users
-
-#### Cart Model Tests
-Unit tests for the Cart model:
-- **Relationships**: Proper Eloquent relationships (user, product)
-- **Eager Loading**: Product is eager-loaded to prevent N+1 queries
-- **Subtotal Calculation**: Quantity × Price calculation works correctly
-- **Type Casting**: Quantity is properly cast to integer
-- **Mass Assignment**: Can assign attributes via `create()` and `update()`
-- **Timestamps**: Created_at and Updated_at are properly maintained
-
-#### Cart Policy Tests
-Unit tests for authorization:
-- **Update Policy**: Users can only update their own carts
-- **Delete Policy**: Users can only delete their own carts
-- **View Policy**: Users can only view their own carts
-- **Create Policy**: Authenticated users can create carts
-
-### Test Coverage
-
-#### What the Tests Cover
-```
-✅ Cart CRUD Operations
-   - Create: Adding products to cart
-   - Read: Viewing cart items
-   - Update: Modifying quantities
-   - Delete: Removing items from cart
-
-✅ Authorization & Security
-   - User isolation (can't see other users' carts)
-   - Authorization policies
-   - Access control
-
-✅ Data Integrity
-   - Model relationships
-   - Type casting
-   - Data validation
-   - Timestamps
-
-✅ E-Commerce Logic
-   - Subtotal calculation
-   - Product-cart relationships
-   - User-cart relationships
-   - Cart item querying
-```
-
-#### Statistics
-```
-Total Tests:      24
-Total Assertions: 57
-Average per test: 2.4 assertions
-Test Files:       4
-Test Classes:     4
-Code Coverage:    Core cart & shop features
-Duration:         ~15 seconds
-Pass Rate:        100%
-```
-
-### Test Data Setup
-
-Tests use **factories** to generate test data:
-
-```php
-// Create a test user
-$user = User::factory()->create();
-
-// Create a product with stock
-$product = Product::factory()->create(['stock' => 10]);
-
-// Create a cart item
-$cart = Cart::factory()->create([
-    'user_id' => $user->id,
-    'product_id' => $product->id,
-    'quantity' => 2
-]);
-```
-
-### Debugging Tests
-
-```bash
-# Run a single test with full debug output
-php artisan test tests/Feature/CartManagementTest.php --filter test_authenticated_user_can_view_cart -v
-
-# Use Laravel Tinker in tests (via test file modifications)
-# Add this to test setup:
-\DB::enableQueryLog();
-// ... run code ...
-dd(\DB::getQueryLog());
-```
-
-### Test Best Practices Used
-
-1. **Isolation**: Each test is independent and doesn't affect others
-2. **RefreshDatabase**: Tests reset database state after each test
-3. **Clear Names**: Test names describe exactly what is being tested
-4. **Single Responsibility**: Each test verifies one thing
-5. **Factories**: DRY approach to creating test data
-6. **Assertions**: Multiple assertions validate behavior
-7. **Organization**: Tests grouped by feature/class
-
-### Common Test Patterns
-
-```php
-// Testing successful operation
-public function test_user_can_view_cart()
-{
-    $cart = Cart::factory()->create(['user_id' => $user->id]);
-    $response = $this->actingAs($user)->get('/cart');
-
-    $response->assertStatus(200)
-        ->assertInertia(fn ($page) => $page->component('Cart/Index'));
-}
-
-// Testing authorization
-public function test_user_cannot_modify_other_user_cart()
-{
-    $cart = Cart::factory()->create(['user_id' => $otherUser->id]);
-
-    $this->assertFalse($user->can('update', $cart));
-}
-
-// Testing database state
-public function test_can_add_product_to_cart()
-{
-    Cart::create([...]);
-
-    $this->assertDatabaseHas('carts', [...]);
-}
+# Tests: 1 passed (23 assertions)
+# Duration: ~3 seconds
 ```
 
 ### Continuous Integration
@@ -410,11 +227,11 @@ The test suite is designed to run in CI/CD pipelines:
 
 ```bash
 # In CI environment
-php artisan test --parallel --coverage
+php artisan test --parallel
 ```
 
 All tests are:
-- ✅ Fast (complete in ~15 seconds)
+- ✅ Fast (complete in ~3 seconds)
 - ✅ Reliable (no flaky tests)
 - ✅ Isolated (database reset per test)
 - ✅ Clear (descriptive names and output)
@@ -598,11 +415,7 @@ MultiTenantDB/
 │
 ├── tests/
 │   ├── Feature/
-│   │   ├── CartManagementTest.php       # Cart CRUD tests (6 tests)
-│   │   └── ShopBrowsingTest.php         # Shop browsing tests (3 tests)
-│   ├── Unit/
-│   │   ├── CartModelTest.php            # Cart model tests (8 tests)
-│   │   └── CartPolicyTest.php           # Authorization tests (7 tests)
+│   │   └── MultiTenantAllTest.php       # Complete integration test (18 assertions)
 │   ├── TestCase.php                     # Base test class
 │   └── TenantTestCase.php               # Tenant-specific test base
 │
@@ -673,7 +486,7 @@ MultiTenantDB/
 
 ## 📊 Project Status
 
-**Status:** ✅ Complete (24/24 tests passing)
+**Status:** ✅ Complete with Comprehensive Multi-Tenant Testing
 
 ### Completed Features
 - ✅ Multi-tenant database architecture
@@ -682,17 +495,19 @@ MultiTenantDB/
 - ✅ Product management (CRUD)
 - ✅ Shopping cart system
 - ✅ Guest cart merging
-- ✅ Complete test suite (24 focused tests)
+- ✅ **Complete integration test suite** (1 comprehensive test)
 - ✅ Security implementation
 - ✅ Comprehensive documentation
 
 ### Test Results
-- **Total Tests:** 24
-- **Passed:** 24 ✅
-- **Failed:** 0
+- **Integration Test:** 1 passed ✅
+- **Assertions:** 18
+- **Tenants Created:** 3
+- **Products per Tenant:** 10
+- **Databases Created:** 4 (1 central + 3 tenant)
 - **Pass Rate:** 100%
-- **Assertions:** 57
-- **Execution Time:** ~15 seconds
+- **Execution Time:** ~5 seconds
+- **Test Databases:** Configurable cleanup (SKIP_CLEANUP=true)
 
 ## 📚 Complete Documentation
 
@@ -735,9 +550,16 @@ php artisan serve                    # Start dev server
 npm run dev                         # Watch and build JS/CSS
 
 # Testing
-# please make sure PostgreSQL test database is created
-php artisan test                    # Run all tests
-php artisan test --coverage         # Run with coverage
+# Please make sure PostgreSQL test database is created
+
+# Run comprehensive multi-tenant integration test
+php artisan test tests/Feature/MultiTenantAllTest.php
+
+# Run test and keep databases for inspection (no cleanup)
+SKIP_CLEANUP=true php artisan test tests/Feature/MultiTenantAllTest.php
+
+# Run with test output
+php artisan test tests/Feature/MultiTenantAllTest.php --testdox
 
 # Database
 php artisan migrate                 # Run migrations

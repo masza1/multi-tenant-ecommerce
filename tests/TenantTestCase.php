@@ -10,14 +10,16 @@ use Illuminate\Support\Facades\DB;
 
 abstract class TenantTestCase extends TestCase
 {
-    use RefreshDatabase;
+    // Don't use RefreshDatabase - run migrations once and keep tables for debugging
+    // use RefreshDatabase;
 
     /**
      * The test tenant instance.
      */
+    protected static ?Tenant $staticTenant = null;
     protected ?Tenant $tenant = null;
 
-    private static bool $tenantMigrationsRun = false;
+    private static bool $migrationsRun = false;
 
     /**
      * Setup the test environment.
@@ -26,35 +28,63 @@ abstract class TenantTestCase extends TestCase
     {
         parent::setUp();
 
-        // Rollback and refresh database within transaction
-        $this->artisanMigrate();
+        // Force test database configuration
+        config([
+            'database.default' => 'pgsql',
+            'database.connections.pgsql.database' => env('DB_DATABASE', 'multitenant_test'),
+        ]);
 
-        // Create a test tenant for testing
-        $this->tenant = $this->createTestTenant();
+        // Override central connection to use test database
+        config([
+            'database.connections.central.database' => env('DB_DATABASE', 'multitenant_test'),
+        ]);
+
+        // Run migrations only once at the beginning of test suite
+        if (!static::$migrationsRun) {
+            $this->artisanMigrate();
+            static::$migrationsRun = true;
+        }
+
+        // DON'T clean up data - keep all test data for inspection
+        // $this->cleanupTestData();
+
+        // Reuse the same tenant for all tests (avoid creating multiple databases)
+        if (static::$staticTenant === null) {
+            static::$staticTenant = $this->createTestTenant();
+        }
+        $this->tenant = static::$staticTenant;
+    }
+
+    /**
+     * Clean up test data between tests while keeping tables.
+     */
+    protected function cleanupTestData(): void
+    {
+        try {
+            // Truncate tables to clean data but keep structure
+            DB::statement('TRUNCATE TABLE carts CASCADE');
+            DB::statement('TRUNCATE TABLE products CASCADE');
+            DB::statement('TRUNCATE TABLE users CASCADE');
+            DB::statement('TRUNCATE TABLE tenants CASCADE');
+        } catch (\Exception $e) {
+            // Tables may not exist yet, skip cleanup
+        }
     }
 
     /**
      * Run migrations properly for tests.
+     * Uses the configured DB_DATABASE from phpunit.xml (multitenant_test)
      */
     protected function artisanMigrate(): void
     {
-        // Rollback all migrations first
-        Artisan::call('migrate:reset', [
-            '--database' => 'central',
-            '--force' => true,
-        ]);
+        // Ensure we're using the test database config
+        config(['database.default' => 'pgsql']);
 
-        // Run landlord migrations
-        Artisan::call('migrate', [
-            '--database' => 'central',
+        // Run ONLY landlord migrations in central database
+        // Tenant migrations will run separately for each tenant
+        Artisan::call('migrate:fresh', [
+            '--database' => 'pgsql',
             '--path' => 'database/migrations/landlord',
-            '--force' => true,
-        ]);
-
-        // Run tenant migrations
-        Artisan::call('migrate', [
-            '--database' => 'central',
-            '--path' => 'database/migrations/tenant',
             '--force' => true,
         ]);
     }
