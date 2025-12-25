@@ -6,6 +6,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 
 abstract class TenantTestCase extends TestCase
 {
@@ -16,6 +17,8 @@ abstract class TenantTestCase extends TestCase
      */
     protected ?Tenant $tenant = null;
 
+    private static bool $tenantMigrationsRun = false;
+
     /**
      * Setup the test environment.
      */
@@ -23,20 +26,34 @@ abstract class TenantTestCase extends TestCase
     {
         parent::setUp();
 
-        // Run tenant migrations on the test database
-        $this->runTenantMigrations();
+        // Rollback and refresh database within transaction
+        $this->artisanMigrate();
 
         // Create a test tenant for testing
         $this->tenant = $this->createTestTenant();
     }
 
     /**
-     * Run the tenant migrations on the test database.
+     * Run migrations properly for tests.
      */
-    protected function runTenantMigrations(): void
+    protected function artisanMigrate(): void
     {
+        // Rollback all migrations first
+        Artisan::call('migrate:reset', [
+            '--database' => 'central',
+            '--force' => true,
+        ]);
+
+        // Run landlord migrations
         Artisan::call('migrate', [
-            '--database' => 'pgsql',
+            '--database' => 'central',
+            '--path' => 'database/migrations/landlord',
+            '--force' => true,
+        ]);
+
+        // Run tenant migrations
+        Artisan::call('migrate', [
+            '--database' => 'central',
             '--path' => 'database/migrations/tenant',
             '--force' => true,
         ]);
