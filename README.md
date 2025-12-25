@@ -140,6 +140,15 @@ php artisan migrate
 # - users table (central admin users)
 ```
 
+### Step 4.5: Create Storage Link
+
+```bash
+# Create a symbolic link from public/storage to storage/app/public
+php artisan storage:link
+
+# This allows serving uploaded files (product images, etc) from public/storage
+```
+
 ### Step 5: Build Frontend Assets
 
 ```bash
