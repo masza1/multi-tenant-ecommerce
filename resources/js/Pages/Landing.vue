@@ -245,12 +245,12 @@ const showModal = ref(false);
 const currentLang = computed(() => globalLocale.value || 'en');
 
 const form = useForm({
-    store_name: 'Store 1',
-    subdomain: 'store-1',
-    email: 'store1@test.com',
-    admin_name: 'Admin Store 1',
-    password: 'admin123',
-    password_confirmation: 'admin123',
+    store_name: '',
+    subdomain: '',
+    email: '',
+    admin_name: '',
+    password: '',
+    password_confirmation: '',
 });
 
 // Watch for tenant redirect URL from session
