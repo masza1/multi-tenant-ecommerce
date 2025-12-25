@@ -110,7 +110,7 @@ php artisan key:generate
 
 # Edit .env and verify these settings:
 # DB_HOST=localhost
-# DB_PORT=54322
+# DB_PORT=5432
 # DB_DATABASE=multitenant_central
 # DB_USERNAME=postgres
 # DB_PASSWORD=your_postgres_password
@@ -171,21 +171,18 @@ The complete integration test creates a full multi-tenant environment with real 
 php artisan test tests/Feature/MultiTenantAllTest.php
 
 # Expected output:
-# Tests:    1 passed (23 assertions)
-# Duration: ~3 seconds
+# Tests:    1 passed (18 assertions)
+# Duration: ~5 seconds
 ```
 
 **This single test covers:**
 - ✅ Creates `multitenant_test` database (if not exists)
 - ✅ Runs landlord migrations (creates tenant and domain tables)
 - ✅ Creates 3 tenants with their own databases
-- ✅ Creates 3 users in first tenant database
-- ✅ Creates 10 products in first tenant database
-- ✅ Tests product CRUD operations (create, read, update, delete)
-- ✅ Tests shopping experience (browse, pagination)
-- ✅ Tests cart CRUD operations (add, view, update, delete)
+- ✅ Creates users and products in each tenant database
+- ✅ Tests cart CRUD operations per tenant
 - ✅ Verifies complete data isolation between tenants
-- ✅ Verifies data persistence in databases
+- ✅ Cleans up all created databases (optional)
 
 ### Test Configuration
 
@@ -195,14 +192,11 @@ You can control cleanup behavior via environment variables:
 # Run test WITHOUT cleanup (keep databases for inspection)
 SKIP_CLEANUP=true php artisan test tests/Feature/MultiTenantAllTest.php
 
-# Run test WITH cleanup (default - removes all test data)
-php artisan test tests/Feature/MultiTenantAllTest.php
 ```
 
 **What gets cleaned up:**
 - `multitenant_test` database (dropped)
 - All `tenant_*` test databases (dropped)
-- All tenant records from central database
 
 **Use `SKIP_CLEANUP=true` when:**
 - Debugging test failures
@@ -217,8 +211,8 @@ php artisan test tests/Feature/MultiTenantAllTest.php
 php artisan test
 
 # Expected output:
-# Tests: 1 passed (23 assertions)
-# Duration: ~3 seconds
+# Tests: 1 passed (18 assertions)
+# Duration: ~5 seconds
 ```
 
 ### Continuous Integration
@@ -227,11 +221,11 @@ The test suite is designed to run in CI/CD pipelines:
 
 ```bash
 # In CI environment
-php artisan test --parallel
+php artisan test --parallel --coverage
 ```
 
 All tests are:
-- ✅ Fast (complete in ~3 seconds)
+- ✅ Fast (complete in ~15 seconds)
 - ✅ Reliable (no flaky tests)
 - ✅ Isolated (database reset per test)
 - ✅ Clear (descriptive names and output)
@@ -247,7 +241,6 @@ All tests are:
 ├──────────────────────────────────┤
 │ - tenants table                  │
 │ - domains table                  │
-│ - users table (central admins)   │
 └──────────────────────────────────┘
            │
     ┌──────┴──────┬──────────┬─────────┐
@@ -280,9 +273,6 @@ All tests are:
 ### Access Points
 
 ```
-Central Admin:
-- http://localhost:8000/admin - Central administration (if implemented)
-
 Tenant Access:
 - http://tenant1.localhost:8000 - Tenant 1 eCommerce site
 - http://tenant2.localhost:8000 - Tenant 2 eCommerce site
@@ -550,7 +540,7 @@ php artisan serve                    # Start dev server
 npm run dev                         # Watch and build JS/CSS
 
 # Testing
-# Please make sure PostgreSQL test database is created
+# please make sure PostgreSQL test database is created
 
 # Run comprehensive multi-tenant integration test
 php artisan test tests/Feature/MultiTenantAllTest.php
@@ -558,8 +548,8 @@ php artisan test tests/Feature/MultiTenantAllTest.php
 # Run test and keep databases for inspection (no cleanup)
 SKIP_CLEANUP=true php artisan test tests/Feature/MultiTenantAllTest.php
 
-# Run with test output
-php artisan test tests/Feature/MultiTenantAllTest.php --testdox
+# Run with verbose output
+php artisan test tests/Feature/MultiTenantAllTest.php -v
 
 # Database
 php artisan migrate                 # Run migrations
